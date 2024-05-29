@@ -142,9 +142,10 @@ namespace volePSI
             cmp->setInput(i,input,false,&chl);
         }
         //cmp->init(r.rows(), cir, mNumThreads, 1, mPrng.get());
-        outputs = cmp->run(&chl);
+        cmp->run(&chl);
+
             //auto ss = cmp->getOutputView(0);
-        ret.mFlagBits.resize(numBins);
+        ret.mFlagBits = cmp->getOutput(0,true,false,&chl);
             //std::copy(ss.begin(), ss.begin() + ret.mFlagBits.sizeBytes(), ret.mFlagBits.data());
 
         MC_END();
@@ -230,10 +231,10 @@ namespace volePSI
             cmp->setInput(i,input,false,&chl);
         }
         //cmp->init(r.rows(), cir, mNumThreads, 1, mPrng.get());
-        auto outputs = cmp->run(&chl);
+        cmp->run(&chl);
             //auto ss = cmp->getOutputView(0);
 
-            ret.mFlagBits.resize(numBins);
+        ret.mFlagBits = cmp->getOutput(0,true,false,&chl);
             //std::copy(ss.begin(), ss.begin() + ret.mFlagBits.sizeBytes(), ret.mFlagBits.data());
 
 

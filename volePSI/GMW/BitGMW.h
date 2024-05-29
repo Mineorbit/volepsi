@@ -100,8 +100,35 @@ namespace osuCrypto
             }
             }
         }
+        // Similar to above: owner of output receives the actual output
+        oc::BitVector getOutput(int i,bool as_share,bool owner,oc::Socket* chl)
+        {
+             oc::BetaBundle outport = mCircuit->mOutputs[i];
 
-        std::vector<oc::BitVector> run(oc::Socket* chl)
+            oc::BitVector output = oc::BitVector(outport.mWires.size());
+            for(int j = 0;j<outport.mWires.size();j++)
+            {
+                output[j] = wireShares[outport.mWires[j]];
+            }
+            if(as_share)
+            {
+                return output;
+            }else
+            {
+                oc::BitVector transmit = oc::BitVector(outport.mWires.size());
+                if(owner)
+                {
+                    cp::sync_wait(chl[0].recv(transmit));
+                    return output^transmit;
+                }else{
+                    transmit = output;
+                    cp::sync_wait(chl[0].send(transmit));
+                    return output;
+                }
+            }
+        }
+
+        void run(oc::Socket* chl)
         {
             std::vector<oc::BetaWire> outWireNumbers(std::max(maxXors,maxAnds));
 
@@ -167,36 +194,8 @@ namespace osuCrypto
                 }
                 }
             }
-            std::vector<oc::BitVector> outputs;
-            // get output port from circuit
-            for(int i = 0;i<mCircuit->mOutputs.size();i++)
-            {
-
-                oc::BetaBundle outport = mCircuit->mOutputs[i];
-
-                oc::BitVector output = oc::BitVector(outport.mWires.size());
-                oc::BitVector transmit = oc::BitVector(outport.mWires.size());
-                for(int j = 0;j<outport.mWires.size();j++)
-                {
-                    output[j] = wireShares[outport.mWires[j]];
-                }
-                // TODO this should maybe be optionally set
-                /* Exchange Shares
-                if(party == 1)
-                {
-
-                    cp::sync_wait(chl[0].recv(transmit));
-                    output ^= transmit;
-                }else{
-                    cp::sync_wait(chl[0].send(output));
-                }
-                */
-                
-                outputs.push_back(output);
-            }
-            return outputs;
-            throw "There was no output";
         }
+
         void genBeaverTriples(int p, long numberAnds,oc::Socket* chl)
         {
             a = oc::BitVector(numberAnds);
