@@ -54,7 +54,7 @@ namespace volePSI
     void isZeroCircuit_Test()
     {
         u64 n = 128, tt = 100;
-        auto cir = isZeroCircuit(n);
+        auto cir = isZeroCircuit(n,1);
 
         {
             oc::BitVector bv(n), out(1);

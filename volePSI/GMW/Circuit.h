@@ -22,7 +22,7 @@ namespace volePSI
     using BetaBundle = oc::BetaBundle;
 
 
-    BetaCircuit isZeroCircuit(u64 bits);
+    BetaCircuit isZeroCircuit(u64 bits,u64 numberInputs);
 
     void isZeroCircuit_Test();
 }

@@ -132,7 +132,7 @@ namespace volePSI
         
         
         
-        cir = isZeroCircuit(keyBitLength);
+        cir = isZeroCircuit(keyBitLength,r.rows());
         cmp->setup(0,&cir,&chl);
         
         for(int i=0;i<r.rows();i++)
@@ -221,7 +221,7 @@ namespace volePSI
 
         
         auto cmp = std::make_unique<oc::BitGMW>();
-        auto cir = isZeroCircuit(keyBitLength);
+        auto cir = isZeroCircuit(keyBitLength,r.rows());
         cmp->setup(1,&cir,&chl);
         
         for(int i=0;i<r.rows();i++)
