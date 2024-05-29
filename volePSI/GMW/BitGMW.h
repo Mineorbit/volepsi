@@ -42,7 +42,7 @@ namespace osuCrypto
             genBeaverTriples(party,andsTotal,chl);
         }
 
-        oc::BitVector run(int n,int inputport,oc::BitVector* input, int party,oc::BetaCircuit* circuit,oc::Socket* chl)
+        std::vector<oc::BitVector> run(int n,int inputport,oc::BitVector* input, int party,oc::BetaCircuit* circuit,oc::Socket* chl)
         {
             std::vector<oc::BetaWire> outWireNumbers(std::max(maxXors,maxAnds));
 
@@ -147,6 +147,7 @@ namespace osuCrypto
                 }
                 }
             }
+            std::vector<oc::BitVector> outputs;
             // get output port from circuit
             for(int i = 0;i<circuit->mOutputs.size();i++)
             {
@@ -160,6 +161,7 @@ namespace osuCrypto
                     output[j] = wireShares[outport.mWires[j]];
                 }
                 // TODO this should maybe be optionally set
+                /* Exchange Shares
                 if(party == 1)
                 {
 
@@ -168,8 +170,11 @@ namespace osuCrypto
                 }else{
                     cp::sync_wait(chl[0].send(output));
                 }
-                return output;
+                */
+                
+                outputs.push_back(output);
             }
+            return outputs;
             throw "There was no output";
         }
         void genBeaverTriples(int p, long numberAnds,oc::Socket* chl)
