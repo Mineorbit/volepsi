@@ -23,7 +23,8 @@ namespace volePSI
             rIter = Matrix<u8>::iterator{},
             opprf = std::make_unique<RsOpprfSender>(),
             cmp = std::make_unique<oc::BitGMW>(),
-            cir = BetaCircuit{}
+            cir = oc::BetaCircuit{},
+            outputs = std::vector<oc::BitVector>{}
         );
 
         setTimePoint("RsCpsiSender::send begin");
@@ -124,24 +125,29 @@ namespace volePSI
 
         MC_AWAIT(opprf->send(numBins, Ty, Tv, mPrng, mNumThreads, chl));
 
+
         //if (mTimer)
         //    cmp->setTimer(*mTimer);
 
+        
+        
+        
         cir = isZeroCircuit(keyBitLength);
         cmp->setup(0,&cir,&chl);
-        cir.Print();
-        //cmp->init(r.rows(), cir, mNumThreads, 1, mPrng.get());
-        auto outputs = cmp->run(12,0,r, 0,&cir,&chl);
         
-
+        for(int i;i<r.rows();i++)
         {
-
-            //auto ss = cmp->getOutputView(0);
-            ret.mFlagBits.resize(numBins);
-            std::copy(ss.begin(), ss.begin() + ret.mFlagBits.sizeBytes(), ret.mFlagBits.data());
+            auto input = oc::BitVector(keyBitLength);
+            cmp->setInput(i,input,false,&chl);
         }
+        //cmp->init(r.rows(), cir, mNumThreads, 1, mPrng.get());
+        outputs = cmp->run(&chl);
+            //auto ss = cmp->getOutputView(0);
+        ret.mFlagBits.resize(numBins);
+            //std::copy(ss.begin(), ss.begin() + ret.mFlagBits.sizeBytes(), ret.mFlagBits.data());
 
         MC_END();
+
     }
 
     Proto RsCpsiReceiver::receive(span<block> X, Sharing& ret, Socket& chl)
@@ -157,9 +163,10 @@ namespace volePSI
             r = Matrix<u8>{},
             opprf = std::make_unique<RsOpprfReceiver>(),
             cmp = std::make_unique<oc::BitGMW>(),
-            cir = BetaCircuit{}
+            cir = oc::BetaCircuit{},
+            outputs = std::vector<oc::BitVector>{}
         );
-
+        {
         if (mRecverSize != X.size())
             throw RTE_LOC;
 
@@ -203,7 +210,6 @@ namespace volePSI
 
         keyBitLength = mSsp + oc::log2ceil(Tx.size());
         keyByteLength = oc::divCeil(keyBitLength, 8);
-
         r.resize(Tx.size(), keyByteLength + mValueByteLength, oc::AllocType::Uninitialized);
 
         if (mTimer)
@@ -211,31 +217,28 @@ namespace volePSI
 
         MC_AWAIT(opprf->receive(mSenderSize * 3, Tx, r, mPrng, mNumThreads, chl));
 
-        cir = isZeroCircuit(keyBitLength);
+        
+        auto cmp = std::make_unique<oc::BitGMW>();
+        auto cir = isZeroCircuit(keyBitLength);
         cmp->setup(1,&cir,&chl);
-        cir.Print();
-        //cmp->init(r.rows(), cir, mNumThreads, 1, mPrng.get());
-        auto outputs = cmp->run(12,0,r, 1,&cir,&chl);
+        
+        for(int i;i<r.rows();i++)
         {
+            auto input = oc::BitVector(keyBitLength);
+            cmp->setInput(i,input,false,&chl);
+        }
+        //cmp->init(r.rows(), cir, mNumThreads, 1, mPrng.get());
+        auto outputs = cmp->run(&chl);
             //auto ss = cmp->getOutputView(0);
 
             ret.mFlagBits.resize(numBins);
             //std::copy(ss.begin(), ss.begin() + ret.mFlagBits.sizeBytes(), ret.mFlagBits.data());
 
-            if (mValueByteLength)
-            {
-                ret.mValues.resize(numBins, mValueByteLength);
-
-                for (u64 i = 0; i < numBins; ++i)
-                {
-                    std::memcpy(&ret.mValues(i, 0), &r(i, keyByteLength), mValueByteLength);
-                }
-            }
-        }
 
         setTimePoint("RsCpsiReceiver::receive done");
-
+        }
         MC_END();
+
     }
 
 

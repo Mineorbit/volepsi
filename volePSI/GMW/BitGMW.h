@@ -19,17 +19,24 @@ namespace osuCrypto
 
         int maxAnds = 0;
         int maxXors = 0;
+        int party;
         span<oc::BetaGate> mGates;
-
+        oc::PRNG gmwprng;
         std::vector<oc::BetaGate*> xors;
         std::vector<oc::BetaGate*> ands;
-        void setup(int party,oc::BetaCircuit* circuit,oc::Socket* chl)
+        oc::BetaCircuit* mCircuit;
+        void setup(int my_party,oc::BetaCircuit* circuit,oc::Socket* chl)
         {
+            mCircuit = circuit;
+            gmwprng = oc::PRNG(oc::toBlock(123));
+            party = my_party;
             useBeaverCounter = 0;
             // TODO: Insert number of ANDS in circuit
             rounds = circuit->mLevelCounts.size();
             maxAnds = 0;
             maxXors = 0;
+            wireShares = oc::BitVector(circuit->mWireCount);
+            mGates = circuit->mGates;
             for(int round = 0; round < rounds;round++)
             {
                 andsTotal += circuit->mLevelAndCounts[round];
@@ -42,30 +49,39 @@ namespace osuCrypto
             genBeaverTriples(party,andsTotal,chl);
         }
 
-        std::vector<oc::BitVector> run(int n,int inputport,oc::BitVector* input, int party,oc::BetaCircuit* circuit,oc::Socket* chl)
+        // Set the input bits of the i th Input to the circuit as given by input vector
+        // as_share: the values in oc::BitVector are already shares
+        // owner: this party owns the shares (only needed if as_shares = false)
+        // if you are setting an input without a share and are not the owner, set input = nullptr, as_share = true, owner = false
+        void setInput(int i,oc::BitVector input,bool as_share,bool owner = false,oc::Socket* chl = nullptr)
         {
-            std::vector<oc::BetaWire> outWireNumbers(std::max(maxXors,maxAnds));
 
-            // Evaluate Rounds of circuit
-            //std::cout << "Running " << circuit << "\n";
-            //std::cout << "Rounds: " << rounds << "\n";
-            mGates = circuit->mGates;
-            wireShares = oc::BitVector(circuit->mWireCount);
-            // Establish input shares
-
-            for(int i = 0;i<circuit->mInputs.size();i++)
+            oc::BetaBundle b = mCircuit->mInputs[i];
+            if(as_share)
             {
-                oc::BetaBundle b = circuit->mInputs[i];
+                    int j = 0;
+                    for(oc::BetaWire wire : b.mWires)
+                    {
+                        wireShares[wire] = input[j];
+                        j++;
+                    }
+            }else
+            {
+                    
+            for(int i = 0;i<mCircuit->mInputs.size();i++)
+            {
                 oc::BitVector transmit(b.mWires.size());
-                if(i == inputport)
+                if(owner)
                 {
+                    oc::BitVector r = oc::BitVector(b.mWires.size());
+                    r.randomize(gmwprng);
                     // Create the shares
                     int j = 0;
                     for(oc::BetaWire wire : b.mWires)
                     {
                         // TODO: set random
-                        bool self = 0;
-                        bool other = self ^ (*input)[j];
+                        bool self = r[j];
+                        bool other = self ^ input[j];
                         wireShares[wire] = self;
                         transmit[j] = other;
                         j++;
@@ -82,14 +98,18 @@ namespace osuCrypto
                     }
                 }
             }
+            }
+        }
 
-
+        std::vector<oc::BitVector> run(oc::Socket* chl)
+        {
+            std::vector<oc::BetaWire> outWireNumbers(std::max(maxXors,maxAnds));
 
             for(int round = 0; round < rounds;round++)
             {
 
-                auto gates = mGates.subspan(0, circuit->mLevelCounts[round]);
-                mGates = mGates.subspan(circuit->mLevelCounts[round]);
+                auto gates = mGates.subspan(0, mCircuit->mLevelCounts[round]);
+                mGates = mGates.subspan(mCircuit->mLevelCounts[round]);
                 int level = 0;
 
                 // Seperate gates
@@ -149,10 +169,10 @@ namespace osuCrypto
             }
             std::vector<oc::BitVector> outputs;
             // get output port from circuit
-            for(int i = 0;i<circuit->mOutputs.size();i++)
+            for(int i = 0;i<mCircuit->mOutputs.size();i++)
             {
 
-                oc::BetaBundle outport = circuit->mOutputs[i];
+                oc::BetaBundle outport = mCircuit->mOutputs[i];
 
                 oc::BitVector output = oc::BitVector(outport.mWires.size());
                 oc::BitVector transmit = oc::BitVector(outport.mWires.size());
@@ -185,18 +205,17 @@ namespace osuCrypto
 
             auto u = oc::BitVector(numberAnds);
             auto v = oc::BitVector(numberAnds);
-            auto gmwprng = new oc::PRNG(oc::toBlock(123));
             for(int r = 0;r<=1;r++)
             {
             if(p == r)
             {
-                a.randomize(*gmwprng);
+                a.randomize(gmwprng);
                 oc::SilentOtExtReceiver receiver;
 
                 std::vector<block> messages(numberAnds);
                 receiver.configure(numberAnds, 2, 1, SilentSecType::SemiHonest);
-                cp::sync_wait(receiver.genSilentBaseOts(*gmwprng, *chl, true));
-                cp::sync_wait(receiver.silentReceive(a,messages, *gmwprng, *chl));
+                cp::sync_wait(receiver.genSilentBaseOts(gmwprng, *chl, true));
+                cp::sync_wait(receiver.silentReceive(a,messages, gmwprng, *chl));
 
                 for(int i = 0;i<numberAnds;i++)
                 {
@@ -207,8 +226,8 @@ namespace osuCrypto
                 std::vector<std::array<block, 2>> messages(numberAnds);
                 oc::SilentOtExtSender sender;
                 sender.configure(numberAnds, 2, 1, SilentSecType::SemiHonest);
-                cp::sync_wait(sender.genSilentBaseOts(*gmwprng, *chl, true));
-                cp::sync_wait(sender.silentSend(messages, *gmwprng, *chl));
+                cp::sync_wait(sender.genSilentBaseOts(gmwprng, *chl, true));
+                cp::sync_wait(sender.silentSend(messages, gmwprng, *chl));
                 for(int i = 0;i<numberAnds;i++)
                 {
                     b[i] = (messages[i][0].mData[0] ^ messages[i][1].mData[0]) & 1;

@@ -1,7 +1,6 @@
 
 configure_file(config.h.in "config.h" )
 
-
 set(SRCS
     "RsOprf.cpp"
     "RsPsi.cpp"

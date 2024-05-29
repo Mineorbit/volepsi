@@ -41,7 +41,7 @@ namespace volePSI
 
             step *= 2;
         }
-        out[x] = a.mWIres[0];
+        out[x] = a.mWires[0];
         a.mWires.resize(1);
         }
         
