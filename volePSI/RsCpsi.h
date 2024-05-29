@@ -16,6 +16,7 @@
 #include "cryptoTools/Common/CuckooIndex.h"
 #include "volePSI/RsOpprf.h"
 #include "volePSI/GMW/Gmw.h"
+#include "volePSI/GMW/BitGMW.h"
 #include "volePSI/SimpleIndex.h"
 #include "cryptoTools/Common/Timer.h"
 #include "cryptoTools/Common/BitVector.h"
