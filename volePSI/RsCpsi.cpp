@@ -22,7 +22,7 @@ namespace volePSI
             TvIter = Matrix<u8>::iterator{},
             rIter = Matrix<u8>::iterator{},
             opprf = std::make_unique<RsOpprfSender>(),
-            cmp = std::make_unique<Gmw>(),
+            cmp = std::make_unique<oc::BitGMW>(),
             cir = BetaCircuit{}
         );
 
@@ -124,18 +124,19 @@ namespace volePSI
 
         MC_AWAIT(opprf->send(numBins, Ty, Tv, mPrng, mNumThreads, chl));
 
-        if (mTimer)
-            cmp->setTimer(*mTimer);
+        //if (mTimer)
+        //    cmp->setTimer(*mTimer);
 
         cir = isZeroCircuit(keyBitLength);
-        cmp->init(r.rows(), cir, mNumThreads, 1, mPrng.get());
-
-        cmp->setInput(0, r);
-        MC_AWAIT(cmp->run(chl));
+        cmp->setup(0,&cir,&chl);
+        cir.Print();
+        //cmp->init(r.rows(), cir, mNumThreads, 1, mPrng.get());
+        auto outputs = cmp->run(12,0,r, 0,&cir,&chl);
+        
 
         {
 
-            auto ss = cmp->getOutputView(0);
+            //auto ss = cmp->getOutputView(0);
             ret.mFlagBits.resize(numBins);
             std::copy(ss.begin(), ss.begin() + ret.mFlagBits.sizeBytes(), ret.mFlagBits.data());
         }
@@ -155,7 +156,7 @@ namespace volePSI
             keyByteLength = u64{},
             r = Matrix<u8>{},
             opprf = std::make_unique<RsOpprfReceiver>(),
-            cmp = std::make_unique<Gmw>(),
+            cmp = std::make_unique<oc::BitGMW>(),
             cir = BetaCircuit{}
         );
 
@@ -210,21 +211,16 @@ namespace volePSI
 
         MC_AWAIT(opprf->receive(mSenderSize * 3, Tx, r, mPrng, mNumThreads, chl));
 
-        if (mTimer)
-            cmp->setTimer(*mTimer);
-
         cir = isZeroCircuit(keyBitLength);
-        cmp->init(r.rows(), cir, mNumThreads, 0, mPrng.get());
-
-        cmp->implSetInput(0, r, r.cols());
-
-        MC_AWAIT(cmp->run(chl));
-
+        cmp->setup(1,&cir,&chl);
+        cir.Print();
+        //cmp->init(r.rows(), cir, mNumThreads, 1, mPrng.get());
+        auto outputs = cmp->run(12,0,r, 0,c&ir,&chl);
         {
-            auto ss = cmp->getOutputView(0);
+            //auto ss = cmp->getOutputView(0);
 
             ret.mFlagBits.resize(numBins);
-            std::copy(ss.begin(), ss.begin() + ret.mFlagBits.sizeBytes(), ret.mFlagBits.data());
+            //std::copy(ss.begin(), ss.begin() + ret.mFlagBits.sizeBytes(), ret.mFlagBits.data());
 
             if (mValueByteLength)
             {
