@@ -135,9 +135,10 @@ namespace volePSI
         cir = isZeroCircuit(keyBitLength);
         cmp->setup(0,&cir,&chl);
         
-        for(int i;i<r.rows();i++)
+        for(int i=0;i<r.rows();i++)
         {
             auto input = oc::BitVector(keyBitLength);
+            input.append(r[i].data(),keyByteLength,0);
             cmp->setInput(i,input,false,&chl);
         }
         //cmp->init(r.rows(), cir, mNumThreads, 1, mPrng.get());
@@ -222,9 +223,10 @@ namespace volePSI
         auto cir = isZeroCircuit(keyBitLength);
         cmp->setup(1,&cir,&chl);
         
-        for(int i;i<r.rows();i++)
+        for(int i=0;i<r.rows();i++)
         {
             auto input = oc::BitVector(keyBitLength);
+            input.append(r[i].data(),keyByteLength,0);
             cmp->setInput(i,input,false,&chl);
         }
         //cmp->init(r.rows(), cir, mNumThreads, 1, mPrng.get());
