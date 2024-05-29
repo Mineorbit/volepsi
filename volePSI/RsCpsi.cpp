@@ -215,7 +215,7 @@ namespace volePSI
         cmp->setup(1,&cir,&chl);
         cir.Print();
         //cmp->init(r.rows(), cir, mNumThreads, 1, mPrng.get());
-        auto outputs = cmp->run(12,0,r, 0,c&ir,&chl);
+        auto outputs = cmp->run(12,0,r, 1,&cir,&chl);
         {
             //auto ss = cmp->getOutputView(0);
 

@@ -3,10 +3,12 @@
 namespace volePSI
 {
 
-    BetaCircuit isZeroCircuit(u64 bits)
+    BetaCircuit isZeroCircuit(u64 bits,u64 numberInputs)
     {
         BetaCircuit cd;
-
+        BetaBundle out(numberInputs);
+        for(int x = 0;x<numberInputs;x++)
+        {
         BetaBundle a(bits);
 
         cd.addInputBundle(a);
@@ -39,10 +41,11 @@ namespace volePSI
 
             step *= 2;
         }
-        //cd.addOutputBundle()
+        out[x] = a.mWIres[0];
         a.mWires.resize(1);
-        cd.mOutputs.push_back(a);
-
+        }
+        
+        cd.addOutputBundle(out);
         cd.levelByAndDepth();
 
         return cd;
