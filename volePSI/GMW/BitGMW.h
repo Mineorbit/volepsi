@@ -112,7 +112,7 @@ namespace osuCrypto
         // Similar to above: owner of output receives the actual output
         oc::BitVector getOutput(int i,bool as_share,bool owner,oc::Socket* chl)
         {
-             oc::BetaBundle outport = mCircuit->mOutputs[i];
+            oc::BetaBundle outport = mCircuit->mOutputs[i];
 
             oc::BitVector output = oc::BitVector(outport.mWires.size());
             for(int j = 0;j<outport.mWires.size();j++)
@@ -150,7 +150,6 @@ namespace osuCrypto
                 auto supportedGateTypes = {oc::GateType::Xor,oc::GateType::And,oc::GateType::nb_And,oc::GateType::Nor};
                 for(auto gateType : supportedGateTypes)
                 {
-                    gatesOfType.clear();
                         
                     int gatesOfTypeCount = 0;
                     for (auto gate = gates.begin(); gate < gates.end(); ++gate)
@@ -255,24 +254,15 @@ namespace osuCrypto
 
         void computeNors(int p,oc::BitVector* x, oc::BitVector* y, oc::BitVector* z, oc::Socket* chl)
         {
-            oc::BitVector negx(x->size());
-            oc::BitVector negy(x->size());
-            for(int i = 0;i<x->size();i++)
-            {
-                negx[i] = !(*x)[i];
-                negy[i] = !(*y)[i];
-            }
+            oc::BitVector negx = ~x;
+            oc::BitVector negy = ~y;
             computeAnds(p,&negx,&negy,z,chl);
         }
 
 
         void computenbAnds(int p,oc::BitVector* x, oc::BitVector* y, oc::BitVector* z, oc::Socket* chl)
         {
-            oc::BitVector negy(x->size());
-            for(int i = 0;i<x->size();i++)
-            {
-                negy[i] = !(*y)[i];
-            }
+            oc::BitVector negy = ~y;
             computeAnds(p,x,&negy,z,chl);
         }
 
