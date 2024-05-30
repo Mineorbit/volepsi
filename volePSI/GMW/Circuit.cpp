@@ -61,14 +61,14 @@ namespace volePSI
                 in.close();
 	            std::ofstream outstream;
 	            outstream.open(filename, std::ios::out | std::ios::trunc | std::ios::binary);
-                cd->writeBin(outstream);
+                cd.writeBin(outstream);
                 outstream.close();
                 std::cout << "Circuit written to disk\n";
 
 
         }else{
                 std::cout << "Reading circuit from disk\n";
-                cd->readBin(in);
+                cd.readBin(in);
                 in.close();
         }
         return cd;
