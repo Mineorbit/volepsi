@@ -1,37 +1,34 @@
 #include "RsCpsi.h"
 
 #include <sstream>
+#include "coproto/coproto.h"
 
 namespace volePSI
 {
 
-    Proto RsCpsiSender::send(span<block> Y, oc::MatrixView<u8> values, Sharing& ret, Socket& chl)
+    void RsCpsiSender::send(span<block> Y, oc::MatrixView<u8> values, Sharing& ret, Socket& chl)
     {
-        MC_BEGIN(Proto,this, Y, values, &ret, &chl,
-            cuckooSeed = block{},
-            params = oc::CuckooParam{},
-            numBins = u64{},
-            sIdx = SimpleIndex{},
-            keyBitLength = u64{},
-            keyByteLength = u64{},
-            hashers = std::array<oc::AES, 3> {},
-            Ty = std::vector<block>{},
-            Tv = Matrix<u8>{},
-            r = Matrix<u8>{},
-            TyIter = std::vector<block>::iterator{},
-            TvIter = Matrix<u8>::iterator{},
-            rIter = Matrix<u8>::iterator{},
-            opprf = std::make_unique<RsOpprfSender>(),
-            cmp = std::make_unique<oc::BitGMW>(),
-            cir = oc::BetaCircuit{},
-            outputs = std::vector<oc::BitVector>{}
-        );
-
+        oc::block cuckooSeed;
+        auto params = oc::CuckooParam{};
+        oc::u64 numBins;
+        auto sIdx = SimpleIndex{};
+        oc::u64 keyBitLength;
+        oc::u64 keyByteLength;
+        std::array<oc::AES, 3> hashers;
+        auto Ty = std::vector<block>{};
+        auto Tv = Matrix<u8>{};
+        auto r = Matrix<u8>{};
+        auto TyIter = std::vector<block>::iterator{};
+        auto TvIter = Matrix<u8>::iterator{};
+        auto rIter = Matrix<u8>::iterator{};
+        auto opprf = std::make_unique<RsOpprfSender>();
+        auto cmp = std::make_unique<oc::BitGMW>();
+        auto cir = oc::BetaCircuit{};
         setTimePoint("RsCpsiSender::send begin");
         if (mSenderSize != Y.size() || mValueByteLength != values.cols())
             throw RTE_LOC;
 
-        MC_AWAIT(chl.recv(cuckooSeed));
+        coproto::sync_wait(chl.recv(cuckooSeed));
         setTimePoint("RsCpsiSender::send recv");
 
         params = oc::CuckooIndex<>::selectParams(mRecverSize, mSsp, 0, 3);
@@ -123,7 +120,7 @@ namespace volePSI
         if (mTimer)
             opprf->setTimer(*mTimer);
 
-        MC_AWAIT(opprf->send(numBins, Ty, Tv, mPrng, mNumThreads, chl));
+        coproto::sync_wait(opprf->send(numBins, Ty, Tv, mPrng, mNumThreads, chl));
 
 
         //if (mTimer)
@@ -135,39 +132,39 @@ namespace volePSI
         cir = isZeroCircuit(keyBitLength,r.rows());
         cmp->setup(0,&cir,&chl);
         
+        std::cout << "Inputs\n";
         for(int i=0;i<r.rows();i++)
         {
             auto input = oc::BitVector(keyBitLength);
             input.append(r[i].data(),keyByteLength,0);
-            cmp->setInput(i,input,false,&chl);
+            cmp->setInput(i,input,true,false,&chl);
         }
+        std::cout << "Run\n";
         //cmp->init(r.rows(), cir, mNumThreads, 1, mPrng.get());
         cmp->run(&chl);
 
+        std::cout << "Output\n";
             //auto ss = cmp->getOutputView(0);
         ret.mFlagBits = cmp->getOutput(0,true,false,&chl);
             //std::copy(ss.begin(), ss.begin() + ret.mFlagBits.sizeBytes(), ret.mFlagBits.data());
 
-        MC_END();
 
     }
 
-    Proto RsCpsiReceiver::receive(span<block> X, Sharing& ret, Socket& chl)
+    void RsCpsiReceiver::receive(span<block> X, Sharing& ret, Socket& chl)
     {
-        MC_BEGIN(Proto,this, X, &ret, &chl,
-            cuckooSeed = block{},
-            cuckoo = oc::CuckooIndex<>{},
-            Tx = std::vector<block>{},
-            hashers = std::array<oc::AES, 3> {},
-            numBins = u64{},
-            keyBitLength = u64{},
-            keyByteLength = u64{},
-            r = Matrix<u8>{},
-            opprf = std::make_unique<RsOpprfReceiver>(),
-            cmp = std::make_unique<oc::BitGMW>(),
-            cir = oc::BetaCircuit{},
-            outputs = std::vector<oc::BitVector>{}
-        );
+        auto cuckooSeed = block{};
+        auto cuckoo = oc::CuckooIndex<>{};
+            auto Tx = std::vector<block>{};
+            auto hashers = std::array<oc::AES, 3> {};
+            oc::u64 numBins;
+            oc::u64 keyBitLength;
+            oc::u64 keyByteLength;
+            auto r = Matrix<u8>{};
+            auto opprf = std::make_unique<RsOpprfReceiver>();
+            auto cmp = std::make_unique<oc::BitGMW>();
+            auto cir = oc::BetaCircuit{};
+            auto outputs = std::vector<oc::BitVector>{};
         {
         if (mRecverSize != X.size())
             throw RTE_LOC;
@@ -175,7 +172,7 @@ namespace volePSI
         setTimePoint("RsCpsiReceiver::receive begin");
 
         cuckooSeed = mPrng.get();
-        MC_AWAIT(chl.send(std::move(cuckooSeed)));
+        coproto::sync_wait(chl.send(std::move(cuckooSeed)));
         cuckoo.init(mRecverSize, mSsp, 0, 3);
 
         cuckoo.insert(X, cuckooSeed);
@@ -217,7 +214,7 @@ namespace volePSI
         if (mTimer)
             opprf->setTimer(*mTimer);
 
-        MC_AWAIT(opprf->receive(mSenderSize * 3, Tx, r, mPrng, mNumThreads, chl));
+        coproto::sync_wait(opprf->receive(mSenderSize * 3, Tx, r, mPrng, mNumThreads, chl));
 
         
         auto cmp = std::make_unique<oc::BitGMW>();
@@ -228,7 +225,7 @@ namespace volePSI
         {
             auto input = oc::BitVector(keyBitLength);
             input.append(r[i].data(),keyByteLength,0);
-            cmp->setInput(i,input,false,&chl);
+            cmp->setInput(i,input,true,false,&chl);
         }
         //cmp->init(r.rows(), cir, mNumThreads, 1, mPrng.get());
         cmp->run(&chl);
@@ -240,7 +237,6 @@ namespace volePSI
 
         setTimePoint("RsCpsiReceiver::receive done");
         }
-        MC_END();
 
     }
 

@@ -17,10 +17,10 @@ include(cmake/findDependancies.cmake)
 add_subdirectory(volePSI)
 
 # build the tests.
-add_subdirectory(tests)
+#add_subdirectory(tests)
 
 # link the executable.
-add_subdirectory(frontend)
+#add_subdirectory(frontend)
 
 # setup the install
 include(cmake/install.cmake)

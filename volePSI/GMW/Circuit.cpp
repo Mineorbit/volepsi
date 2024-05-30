@@ -7,15 +7,18 @@ namespace volePSI
     {
         BetaCircuit cd;
         BetaBundle out(numberInputs);
+        std::vector<oc::BetaBundle> inputs;
+        for(int i = 0;i<numberInputs;i++)
+        {
+            inputs.push_back(BetaBundle(bits));
+            cd.addInputBundle(inputs[i]);
+        }
+        
+        cd.addOutputBundle(out);
         for(int x = 0;x<numberInputs;x++)
         {
-        BetaBundle a(bits);
+        BetaBundle a = inputs[x];
 
-        cd.addInputBundle(a);
-
-        //for (u64 i = 1; i < bits; ++i)
-        //    cd.addGate(a.mWires[i], a.mWires[i], oc::GateType::Nxor, a.mWires[i]);
-        auto ts = [](int s) {return std::to_string(s); };
         u64 step = 1;
 
         for (u64 i = 0; i < bits; ++i)
@@ -24,15 +27,8 @@ namespace volePSI
         while (step < bits)
         {
             //std::cout << "\n step " << step << std::endl;
-            cd.addPrint("\n step " + ts(step) + "\n");
             for (u64 i = 0; i + step < bits; i += step * 2)
             {
-                cd.addPrint("a[" + ts(i) + "] & a[" + ts(i + step) + "] -> a[" + ts(i) + "]\n");
-                cd.addPrint(a.mWires[i]);
-                cd.addPrint(" & ");
-                cd.addPrint(a.mWires[i + step]);
-                cd.addPrint(" -> ");
-                cd.addPrint(a.mWires[i]);
                 //cd.addPrint("a[" + ts(i)+ "] &= a[" +ts(i + step) + "]\n");
 
                 //std::cout << "a[" << i << "] &= a[" << (i + step) << "]" << std::endl;
@@ -41,12 +37,11 @@ namespace volePSI
 
             step *= 2;
         }
-        out[x] = a.mWires[0];
         a.mWires.resize(1);
+        cd.mOutputs[0][x] = a.mWires[0];
         }
         
-        cd.addOutputBundle(out);
-        cd.levelByAndDepth();
+        cd.levelByAndDepth(BetaCircuit::LevelizeType::Reorder);
 
         return cd;
     }

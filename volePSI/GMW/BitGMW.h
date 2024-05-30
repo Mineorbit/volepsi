@@ -2,6 +2,7 @@
 #include <vector>
 #include "cryptoTools/Circuit/BetaCircuit.h"
 #include "cryptoTools/Circuit/Gate.h"
+#include "coproto/coproto.h"
 #include <tuple>
 
 namespace osuCrypto
@@ -17,35 +18,46 @@ namespace osuCrypto
         long rounds;
         int andsTotal = 0;
 
-        int maxAnds = 0;
-        int maxXors = 0;
+        int maxGates = 0;
         int party;
         span<oc::BetaGate> mGates;
         oc::PRNG gmwprng;
-        std::vector<oc::BetaGate*> xors;
-        std::vector<oc::BetaGate*> ands;
+        std::vector<oc::BetaGate*> gatesOfType;
+        
+        std::vector<oc::BetaWire> outWireNumbers;
         oc::BetaCircuit* mCircuit;
         void setup(int my_party,oc::BetaCircuit* circuit,oc::Socket* chl)
         {
+            std::cout << "Setup\n";
             mCircuit = circuit;
             gmwprng = oc::PRNG(oc::toBlock(123));
             party = my_party;
             useBeaverCounter = 0;
             // TODO: Insert number of ANDS in circuit
             rounds = circuit->mLevelCounts.size();
-            maxAnds = 0;
-            maxXors = 0;
             wireShares = oc::BitVector(circuit->mWireCount);
             mGates = circuit->mGates;
+            int count = 0;
             for(int round = 0; round < rounds;round++)
             {
-                andsTotal += circuit->mLevelAndCounts[round];
-                int xors = circuit->mLevelCounts[round] - circuit->mLevelAndCounts[round];
-                maxAnds = std::max((int)maxAnds,(int)circuit->mLevelAndCounts[round]);
-                maxXors = std::max((int)maxXors,(int)xors);
+                
+                std::cout << "Round "<< round <<"\n";
+                auto gates = mGates.subspan(count,mCircuit->mLevelCounts[round]);
+                count += mCircuit->mLevelCounts[round];
+                int andCount = (int)circuit->mLevelAndCounts[round];
+                for (auto gate = gates.begin(); gate < gates.end(); ++gate)
+                {
+                    
+                    if(gate->mType == oc::GateType::Nor || gate->mType == oc::GateType::nb_And)
+                    {
+                        andCount++;
+                    }
+                }
+                andsTotal += andCount;
+                maxGates = std::max((int)maxGates,(int)gates.size());
             }
-            xors.resize(maxXors);
-            ands.resize(maxAnds);
+            gatesOfType.resize(maxGates);
+            outWireNumbers.resize(maxGates);
             genBeaverTriples(party,andsTotal,chl);
         }
 
@@ -86,10 +98,10 @@ namespace osuCrypto
                         transmit[j] = other;
                         j++;
                     }
-                    cp::sync_wait(chl[0].send(transmit));
+                    coproto::sync_wait(chl[0].send(transmit));
                 }else
                 {
-                    cp::sync_wait(chl[0].recv(transmit));
+                    coproto::sync_wait(chl[0].recv(transmit));
                     int j = 0;
                     for(oc::BetaWire wire : b.mWires)
                     {
@@ -118,11 +130,11 @@ namespace osuCrypto
                 oc::BitVector transmit = oc::BitVector(outport.mWires.size());
                 if(owner)
                 {
-                    cp::sync_wait(chl[0].recv(transmit));
+                    coproto::sync_wait(chl[0].recv(transmit));
                     return output^transmit;
                 }else{
                     transmit = output;
-                    cp::sync_wait(chl[0].send(transmit));
+                    coproto::sync_wait(chl[0].send(transmit));
                     return output;
                 }
             }
@@ -130,71 +142,73 @@ namespace osuCrypto
 
         void run(oc::Socket* chl)
         {
-            std::vector<oc::BetaWire> outWireNumbers(std::max(maxXors,maxAnds));
 
             for(int round = 0; round < rounds;round++)
             {
 
                 auto gates = mGates.subspan(0, mCircuit->mLevelCounts[round]);
                 mGates = mGates.subspan(mCircuit->mLevelCounts[round]);
-                int level = 0;
 
                 // Seperate gates
-                int andNumLayer = 0;
-                int xorNumLayer = 0;
-                for (auto gate = gates.begin(); gate < gates.end(); ++gate)
+                auto supportedGateTypes = {oc::GateType::Xor,oc::GateType::And,oc::GateType::nb_And,oc::GateType::Nor};
+                for(auto gateType : supportedGateTypes)
                 {
-                    if(gate->mType == oc::GateType::And)
+                    gatesOfType.clear();
+                        
+                    int gatesOfTypeCount = 0;
+                    for (auto gate = gates.begin(); gate < gates.end(); ++gate)
                     {
-                        ands[andNumLayer] = gate;
-                        andNumLayer++;
+                   
+                        if(gate->mType == gateType)
+                        {
+                            gatesOfType[gatesOfTypeCount] = gate;
+                            gatesOfTypeCount++;
+                        }
                     }
-                    if(gate->mType == oc::GateType::Xor)
-                    {
-                        xors[xorNumLayer] = gate;
-                        xorNumLayer++;
-                    }
-                    level++;
-                }
-                oc::BitVector left(std::max(xorNumLayer,andNumLayer));
-                oc::BitVector right(std::max(xorNumLayer,andNumLayer));
-                oc::BitVector outShares(std::max(xorNumLayer,andNumLayer));
-                if(xorNumLayer > 0)
+                    
+                if(gatesOfTypeCount > 0)
                 {
-                // Compute Gates in bundle
+                    oc::BitVector left(gatesOfTypeCount);
+                    oc::BitVector right(gatesOfTypeCount);
+                    oc::BitVector outShares(gatesOfTypeCount);
+                    // Compute Gates in bundle
 
-                for(int i = 0;i<xorNumLayer;i++)
-                {
-                    auto gate = xors[i];
-                    left[i] = wireShares[gate->mInput[0]];
-                    right[i] = wireShares[gate->mInput[1]];
-                    outWireNumbers[i] = gate->mOutput;
+                    for(int i = 0;i<gatesOfTypeCount;i++)
+                    {
+                        auto gate = gatesOfType[i];
+                        left[i] = wireShares[gate->mInput[0]];
+                        right[i] = wireShares[gate->mInput[1]];
+                        outWireNumbers[i] = gate->mOutput;
+                    }
+                    switch (gateType)
+                    {
+                    case oc::GateType::Xor:
+                        computeXors(&left,&right,&outShares);
+                        break;
+                    case oc::GateType::And:
+                        computeAnds(party,&left,&right,&outShares,chl);
+                        break;
+                    case oc::GateType::nb_And:
+                        computenbAnds(party,&left,&right,&outShares,chl);
+                        break;
+                    case oc::GateType::Nor:
+                        computeNors(party,&left,&right,&outShares,chl);
+                        break;
+                    
+                    default:
+                        throw("ERROR!");
+                        break;
+                    }
+                    for(int i = 0;i<gatesOfTypeCount;i++)
+                    {
+                        wireShares[outWireNumbers[i]] = outShares[i];
+                    }
                 }
-                computeXors(&left,&right,&outShares);
-                for(int i = 0;i<xorNumLayer;i++)
-                {
-                    wireShares[outWireNumbers[i]] = outShares[i];
-                }
-                }
-                if(andNumLayer > 0)
-                {
-                left.resize(andNumLayer);
-                right.resize(andNumLayer);
-                for(int i = 0;i<andNumLayer;i++)
-                {
-                    auto gate = ands[i];
-                    left[i] = wireShares[gate->mInput[0]];
-                    right[i] = wireShares[gate->mInput[1]];
-                    outWireNumbers[i] = gate->mOutput;
-                }
-                computeAnds(party,&left,&right,&outShares,chl);
-                for(int i = 0;i<andNumLayer;i++)
-                {
-                    wireShares[outWireNumbers[i]] = outShares[i];
+
+
                 }
                 }
             }
-        }
 
         void genBeaverTriples(int p, long numberAnds,oc::Socket* chl)
         {
@@ -213,8 +227,8 @@ namespace osuCrypto
 
                 std::vector<block> messages(numberAnds);
                 receiver.configure(numberAnds, 2, 1, SilentSecType::SemiHonest);
-                cp::sync_wait(receiver.genSilentBaseOts(gmwprng, *chl, true));
-                cp::sync_wait(receiver.silentReceive(a,messages, gmwprng, *chl));
+                coproto::sync_wait(receiver.genSilentBaseOts(gmwprng, *chl, true));
+                coproto::sync_wait(receiver.silentReceive(a,messages, gmwprng, *chl));
 
                 for(int i = 0;i<numberAnds;i++)
                 {
@@ -225,8 +239,8 @@ namespace osuCrypto
                 std::vector<std::array<block, 2>> messages(numberAnds);
                 oc::SilentOtExtSender sender;
                 sender.configure(numberAnds, 2, 1, SilentSecType::SemiHonest);
-                cp::sync_wait(sender.genSilentBaseOts(gmwprng, *chl, true));
-                cp::sync_wait(sender.silentSend(messages, gmwprng, *chl));
+                coproto::sync_wait(sender.genSilentBaseOts(gmwprng, *chl, true));
+                coproto::sync_wait(sender.silentSend(messages, gmwprng, *chl));
                 for(int i = 0;i<numberAnds;i++)
                 {
                     b[i] = (messages[i][0].mData[0] ^ messages[i][1].mData[0]) & 1;
@@ -241,6 +255,30 @@ namespace osuCrypto
         {
             (*o) = (*a) ^ (*b);
         }
+
+        void computeNors(int p,oc::BitVector* x, oc::BitVector* y, oc::BitVector* z, oc::Socket* chl)
+        {
+            oc::BitVector negx(x->size());
+            oc::BitVector negy(x->size());
+            for(int i = 0;i<x->size();i++)
+            {
+                negx[i] = !(*x)[i];
+                negy[i] = !(*y)[i];
+            }
+            computeAnds(p,&negx,&negy,z,chl);
+        }
+
+
+        void computenbAnds(int p,oc::BitVector* x, oc::BitVector* y, oc::BitVector* z, oc::Socket* chl)
+        {
+            oc::BitVector negy(x->size());
+            for(int i = 0;i<x->size();i++)
+            {
+                negy[i] = !(*y)[i];
+            }
+            computeAnds(p,x,&negy,z,chl);
+        }
+
         void computeAnds(int p,oc::BitVector* x, oc::BitVector* y, oc::BitVector* z, oc::Socket* chl)
         {
             int numAnds = x->size();
@@ -260,23 +298,23 @@ namespace osuCrypto
             oc::BitVector oe(es.size());
             if(p == 0)
             {
-                cp::sync_wait(chl[0].send(ds));
-                cp::sync_wait(chl[0].send(es));
+                coproto::sync_wait(chl[0].send(ds));
+                coproto::sync_wait(chl[0].send(es));
             }else
             {
 
-                cp::sync_wait(chl[0].recv(od));
-                cp::sync_wait(chl[0].recv(oe));
+                coproto::sync_wait(chl[0].recv(od));
+                coproto::sync_wait(chl[0].recv(oe));
             }
             if(p == 1)
             {
-                cp::sync_wait(chl[0].send(ds));
-                cp::sync_wait(chl[0].send(es));
+                coproto::sync_wait(chl[0].send(ds));
+                coproto::sync_wait(chl[0].send(es));
             }else
             {
 
-                cp::sync_wait(chl[0].recv(od));
-                cp::sync_wait(chl[0].recv(oe));
+                coproto::sync_wait(chl[0].recv(od));
+                coproto::sync_wait(chl[0].recv(oe));
             }
             if(p==1)
             {

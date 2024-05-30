@@ -1,6 +1,6 @@
 
 configure_file(config.h.in "config.h" )
-
+add_compile_options(-g)
 set(SRCS
     "RsOprf.cpp"
     "RsPsi.cpp"

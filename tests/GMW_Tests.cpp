@@ -170,7 +170,7 @@ void Gmw_half_test(const oc::CLP& cmd)
     prng.get(input0.data(), input0.size());
     prng.get(input1.data(), input1.size());
 
-    auto cir = isZeroCircuit(bc);
+    auto cir = isZeroCircuit(bc,1);
     cmp0.init(n * 128, cir, 1, 0, oc::ZeroBlock);
     cmp1.init(n * 128, cir, 1, 1, oc::OneBlock);
 
@@ -230,7 +230,7 @@ void Gmw_basic_test(const oc::CLP& cmd)
         prng.get(y[i].data(), n);
     }
 
-    auto cir = isZeroCircuit(bc);
+    auto cir = isZeroCircuit(bc,1);
     cmp0.init(n * 128, cir, 1, 0, oc::ZeroBlock);
     cmp1.init(n * 128, cir, 1, 1, oc::OneBlock);
 
