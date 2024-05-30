@@ -1,5 +1,6 @@
 #include "Circuit.h"
 #include <string>
+#include <fstream>
 namespace volePSI
 {
 
