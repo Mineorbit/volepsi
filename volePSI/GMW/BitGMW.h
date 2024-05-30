@@ -254,15 +254,15 @@ namespace osuCrypto
 
         void computeNors(int p,oc::BitVector* x, oc::BitVector* y, oc::BitVector* z, oc::Socket* chl)
         {
-            oc::BitVector negx = ~x;
-            oc::BitVector negy = ~y;
+            oc::BitVector negx = ~(*x);
+            oc::BitVector negy = ~(*y);
             computeAnds(p,&negx,&negy,z,chl);
         }
 
 
         void computenbAnds(int p,oc::BitVector* x, oc::BitVector* y, oc::BitVector* z, oc::Socket* chl)
         {
-            oc::BitVector negy = ~y;
+            oc::BitVector negy = ~(*y);
             computeAnds(p,x,&negy,z,chl);
         }
 
