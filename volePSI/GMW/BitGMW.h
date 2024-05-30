@@ -272,12 +272,9 @@ namespace osuCrypto
             oc::BitVector aSelect = oc::BitVector(numAnds);
             oc::BitVector bSelect = oc::BitVector(numAnds);
             oc::BitVector cSelect = oc::BitVector(numAnds);
-            for(int i = 0; i < numAnds;i++)
-            {
-                aSelect[i] = a[useBeaverCounter+i];
-                bSelect[i] = b[useBeaverCounter+i];
-                cSelect[i] = c[useBeaverCounter+i];
-            }
+            aSelect.copy(a,useBeaverCounter,numAnds);
+            bSelect.copy(b,useBeaverCounter,numAnds);
+            cSelect.copy(c,useBeaverCounter,numAnds);
             useBeaverCounter += numAnds;
             oc::BitVector ds = aSelect ^ (*x);
             oc::BitVector es = bSelect ^ (*y);
