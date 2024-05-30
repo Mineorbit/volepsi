@@ -5,7 +5,20 @@ namespace volePSI
 
     BetaCircuit isZeroCircuit(u64 bits,u64 numberInputs)
     {
+        
+
         BetaCircuit cd;
+
+            std::ifstream in;
+            std::string filename = "./circuitpsi_"+std::to_string(bits)+"_"+std::to_string(numberInputs)+".bin";
+	        in.open(filename, std::ios::in | std::ios::binary);
+            if(in.is_open() == false)
+            {
+            
+            
+
+
+
         BetaBundle out(numberInputs);
         std::vector<oc::BetaBundle> inputs;
         for(int i = 0;i<numberInputs;i++)
@@ -43,6 +56,20 @@ namespace volePSI
         
         cd.levelByAndDepth(BetaCircuit::LevelizeType::Reorder);
 
+
+                in.close();
+	            std::ofstream out;
+	            out.open(filename, std::ios::out | std::ios::trunc | std::ios::binary);
+                cd->writeBin(out);
+                out.close();
+                std::cout << "Circuit written to disk\n";
+
+
+        }else{
+                std::cout << "Reading circuit from disk\n";
+                cd->readBin(in);
+                in.close();
+        }
         return cd;
     }
 
