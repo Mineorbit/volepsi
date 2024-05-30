@@ -224,7 +224,7 @@ namespace osuCrypto
                 std::vector<block> messages(numberAnds);
                 receiver.configure(numberAnds, 2, 1, SilentSecType::SemiHonest);
                 coproto::sync_wait(receiver.genSilentBaseOts(gmwprng, *chl, true));
-                coproto::sync_wait(receiver.receive(a,messages, gmwprng, *chl));
+                coproto::sync_wait(receiver.silentReceive(a,messages, gmwprng, *chl));
 
                 for(int i = 0;i<numberAnds;i++)
                 {
@@ -236,7 +236,7 @@ namespace osuCrypto
                 oc::SilentOtExtSender sender;
                 sender.configure(numberAnds, 2, 1, SilentSecType::SemiHonest);
                 coproto::sync_wait(sender.genSilentBaseOts(gmwprng, *chl, true));
-                coproto::sync_wait(sender.send(messages, gmwprng, *chl));
+                coproto::sync_wait(sender.silentSend(messages, gmwprng, *chl));
                 for(int i = 0;i<numberAnds;i++)
                 {
                     b[i] = (messages[i][0].mData[0] ^ messages[i][1].mData[0]) & 1;
