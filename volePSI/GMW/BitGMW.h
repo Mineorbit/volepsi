@@ -28,7 +28,6 @@ namespace osuCrypto
         oc::BetaCircuit* mCircuit;
         void setup(int my_party,oc::BetaCircuit* circuit,oc::Socket* chl)
         {
-            std::cout << "Setup\n";
             mCircuit = circuit;
             gmwprng = oc::PRNG(oc::toBlock(123));
             party = my_party;
@@ -40,8 +39,6 @@ namespace osuCrypto
             int count = 0;
             for(int round = 0; round < rounds;round++)
             {
-                
-                std::cout << "Round "<< round <<"\n";
                 auto gates = mGates.subspan(count,mCircuit->mLevelCounts[round]);
                 count += mCircuit->mLevelCounts[round];
                 int andCount = (int)circuit->mLevelAndCounts[round];

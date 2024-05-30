@@ -132,18 +132,15 @@ namespace volePSI
         cir = isZeroCircuit(keyBitLength,r.rows());
         cmp->setup(0,&cir,&chl);
         
-        std::cout << "Inputs\n";
         for(int i=0;i<r.rows();i++)
         {
             auto input = oc::BitVector(keyBitLength);
             input.append(r[i].data(),keyByteLength,0);
             cmp->setInput(i,input,true,false,&chl);
         }
-        std::cout << "Run\n";
         //cmp->init(r.rows(), cir, mNumThreads, 1, mPrng.get());
         cmp->run(&chl);
 
-        std::cout << "Output\n";
             //auto ss = cmp->getOutputView(0);
         ret.mFlagBits = cmp->getOutput(0,true,false,&chl);
             //std::copy(ss.begin(), ss.begin() + ret.mFlagBits.sizeBytes(), ret.mFlagBits.data());
