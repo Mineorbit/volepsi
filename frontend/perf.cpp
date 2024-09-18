@@ -455,6 +455,8 @@ void perfCPSI(oc::CLP& cmd)
 #ifdef VOLE_PSI_ENABLE_CPSI
 	auto ns = 1ull << cmd.getOr("nns", 10);
 	auto nr = 1ull << cmd.getOr("nnr", 10);
+	std::cout << "Sender Size: " << ns << "\n";
+	std::cout << "Receiver Size: " << nr << "\n";
 	auto t = cmd.getOr("t", 1ull);
 	//auto mal = cmd.isSet("mal");
 	auto v = cmd.isSet("v");
