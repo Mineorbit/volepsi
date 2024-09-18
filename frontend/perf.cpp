@@ -467,8 +467,8 @@ void perfCPSI(oc::CLP& cmd)
 	RsCpsiReceiver::Sharing rs;
 	RsCpsiSender::Sharing ss;
 
-	recv.init(n, n, 0, 40, ZeroBlock, nt);
-	send.init(n, n, 0, 40, ZeroBlock, nt);
+	recv.init(ns, nr, 0, 40, ZeroBlock, nt);
+	send.init(ns, nr, 0, 40, ZeroBlock, nt);
 
 
 	std::vector<block> recvSet(nr), sendSet(ns);
