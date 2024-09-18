@@ -453,7 +453,8 @@ void perfPSI(oc::CLP& cmd)
 void perfCPSI(oc::CLP& cmd)
 {
 #ifdef VOLE_PSI_ENABLE_CPSI
-	auto n = 1ull << cmd.getOr("nn", 10);
+	auto ns = 1ull << cmd.getOr("nns", 10);
+	auto nr = 1ull << cmd.getOr("nnr", 10);
 	auto t = cmd.getOr("t", 1ull);
 	//auto mal = cmd.isSet("mal");
 	auto v = cmd.isSet("v");
@@ -470,7 +471,7 @@ void perfCPSI(oc::CLP& cmd)
 	send.init(n, n, 0, 40, ZeroBlock, nt);
 
 
-	std::vector<block> recvSet(n), sendSet(n);
+	std::vector<block> recvSet(nr), sendSet(ns);
 	PRNG prng(ZeroBlock);
 	prng.get<block>(recvSet);
 	prng.get<block>(sendSet);
